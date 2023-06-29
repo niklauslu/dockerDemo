@@ -1,0 +1,117 @@
+version: '3.8'
+services:
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx-server
+    restart: always
+    ports:
+      - 88:80
+      - 443:443
+    volumes:
+      - ./data/nginx/log:/var/log/nginx
+      - ./data/nginx/conf.d:/etc/nginx/conf.d
+  
+  mongo:
+    image: mongo:latest
+    container_name: mongo-server
+    restart: always
+    privileged: true
+    ports:
+      - 27017:27017
+    volumes:
+      - ./data/mongodb/data:/data/db 
+    command: [--auth]
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=123456
+  
+  mysql:
+    image: mysql:5.7
+    platform: "linux/amd64"
+    restart: always
+    ports:
+      - 3306:3306
+    privileged: true
+    environment:
+      - TZ=Asia/Shanghai
+      - MYSQL_ROOT_PASSWORD=123456
+    volumes:
+      - ./data/mysql/config/my.cnf:/etc/mysql/my.cnf
+      - ./data/mysql/db:/var/lib/mysql
+      - ./data/mysql/log:/var/log/mysql 
+    command: [
+        '--character-set-server=utf8mb4',
+        '--collation-server=utf8mb4_general_ci',
+        '--max_connections=3000'
+    ]
+
+  redis:
+    image: redis:latest
+    container_name: redis-server
+    restart: always
+    privileged: true
+    ports:
+      - 6379:6379
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data/redis/data:/data
+      - ./data/redis/conf/redis.conf:/usr/local/etc/redis/redis.conf
+      - ./data/redis/logs:/logs
+    command: ["redis-server","/usr/local/etc/redis/redis.conf"]
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: rabbitmq-server
+    restart: always
+    hostname: rabbitmq-0
+    ports:
+      - 5672:5672
+      - 15672:15672
+    environment:
+      - TZ=Asia/Shanghai
+      - RABBITMQ_DEFAULT_USER=admin
+      - RABBITMQ_DEFAULT_PASS=123456
+    volumes:
+      - ./data/rabbitmq/data:/var/lib/rabbitmq
+  
+  elasticsearch:
+    image: elasticsearch:8.8.1
+    container_name: elasticsearch
+    restart: always
+    privileged: true
+    ports:
+      - 9200:9200
+      - 9300:9300
+    environment:
+      - node.name=es0
+      - cluster.name=elasticsearch0
+      - bootstrap.memory_lock=true
+      # - "ES_JAVA_OPTS=-Xms512m -Xmx1096m"
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+    volumes:
+      - ./data/elasticsearch/data:/usr/share/elasticsearch/data
+      - ./data/elasticsearch/logs:/usr/share/elasticsearch/logs
+      - ./data/elasticsearch/plugins:/usr/share/elasticsearch/plugins
+    mem_limit: 2g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+  
+  kibana:
+    image: kibana:8.8.1
+    container_name: kibana
+    depends_on:
+      - elasticsearch #kibana在elasticsearch启动之后再启动
+    environment:
+      ELASTICSEARCH_HOSTS: http://localhost:9200 #设置访问elasticsearch的地址
+      I18N_LOCALE: zh-CN
+    ports:
+      - 5601:5601
+    
+    
